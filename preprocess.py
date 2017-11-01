@@ -8,9 +8,6 @@ import cv2
 binary_threshold = 100 # 二値画像変換の閾値。
 erode_kernel = 3 # erodeのkernelの大きさ
 erode_iterations = 3 # erodeの回数
-line_accumulation = 7000 # 直線として認識されるのに必要な同一直線状のpx数。
-rho_precision = 4
-theta_precision = numpy.pi/90
 
 
 def preprocess(map_file_name):

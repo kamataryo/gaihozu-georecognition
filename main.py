@@ -11,11 +11,16 @@ from preprocess import *
 map_file_name = sys.argv[1] #引数は画像ファイルのパス。
 #map_file_name = "343_14259x11388px.jpg"
 
+line_accumulation = 7000 # 直線として認識されるのに必要な同一直線状のpx数。
+rho_precision = 4
+theta_precision = numpy.pi/90
+
+
 eroded = preprocess(map_file_name)
 
 lines = cv2.HoughLines(eroded, rho_precision, theta_precision, line_accumulation) #辺の候補となる直線 (θとρで表す) を取得。引数は対象画像、ρの精度、θの精度、線分の閾値。この時点で直線の数は4本より多い。
 
-
+print(lines)
 #color = cv2.imread(map_file_name, 1)
 #for line in lines:
 #    line = line[0]
