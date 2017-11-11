@@ -1,7 +1,7 @@
 # gaihozu-georecognition
 
 main.pyを使ってインポート外邦図1枚をインポートする。
-他のスクリプトはimport.pyによって自動的に呼び出される。
+他のスクリプトはmain.pyによって自動的に呼び出される。
 引数は、地図名、Map WarperのトップページのURL、 -u ユーザーのメールアドレス -p パスワード
 例。
 
