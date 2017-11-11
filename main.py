@@ -42,6 +42,6 @@ import_url = re.sub(r'//api/vi', '/api/vi', import_url)
 
 import_data = generate_json(MAP_NAME)
 
-response = s.post(import_url, headers=import_headers, data=import_data, stream=True)
+response = s.post(import_url, headers=import_headers, data=import_data)
 
 print(response)
