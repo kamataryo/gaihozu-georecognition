@@ -6,9 +6,9 @@ This script imports a gaihozu (外邦図) published in Stanford Digital Reposito
 """
 
 import argparse
-import json
-import sys
 import re
+import sys
+import json
 import requests
 from json_generator import generate_json
 
@@ -35,7 +35,7 @@ authentication_data = json.dumps(authentication_data)
 s = requests.Session()
 s.post(authentication_url, headers=authentication_headers, data=authentication_data)
 
-import_headers = authentication_headers = {"Content-Type": "application/json", "Accept": "application/json"}
+import_headers = {"Content-Type": "application/json", "Accept": "application/json"}
 
 import_url = URL + "/api/v1/maps"
 import_url = re.sub(r'//api/vi', '/api/vi', import_url)

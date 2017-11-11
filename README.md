@@ -8,7 +8,7 @@ $ python main.py gomanbunnoichichikeizu343.jpg http://ec2-52-198-241-210.ap-nort
 <br><br>
 
 作業ディレクトリには、読み込む地図と"attributes.csv"という名前のcsvファイルを前もって置いておく必要あり。attributes.csvの形式についてはattributes.csvそのものを参照。
-このCSVから地図のメタデータが取得される。ヘッダーの各項目はMap Warper APIにおける地図のattributesの項目と一致しなければならない。
+このCSVから地図のメタデータを取得する。ヘッダーの各項目はMap Warper APIにおける地図のattributesの項目と一致しなければならない。
 ただし足りない項目があるのはかまわない。
 ヘッダーに対応する値がない時は空の値を入れておく。
 main.pyの引数に入力する地図名と、attributes.csvの"unique_id"または"title"の項目の少なくとも1つは、一字一句違わず一致しなければならない。
