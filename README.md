@@ -10,7 +10,7 @@ $ python import.py gomanbunnoichichikeizu343.jpg http://ec2-52-198-241-210.ap-no
 
 作業ディレクトリに前もって読み込む地図と"attributes.csv"という名前のcsvファイルを置いておく必要あり。
 
-attributes.csvの形式についてはexample_attributes.csvを参照。
+attributes.csvの形式についてはattributes.csvを直接参照してください。
 headerの項目はいじらないこと。
 headerに対応する値が地図にない時は空の値を入れておく。
 import.pyの引数として入力する地図名と、attributes.csvのunique_idまたはtitleの項目の少なくとも1つは、一字一句違わず一致しなければならない。
