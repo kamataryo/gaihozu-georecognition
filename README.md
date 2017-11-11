@@ -16,4 +16,4 @@ attributes.csvの形式についてはattributes.csvそのものを参照。
 ただし足りない項目があるのはかまわない。
 ヘッダーに対応する値がない時は空の値を入れておく。
 main.pyの引数に入力する地図名と、attributes.csvの"unique_id"または"title"の項目の少なくとも1つは、一字一句違わず一致しなければならない。
-date_depictedとissue_yearはAPIの仕様により4文字まで。
+メタデータの値のうち"date_depicted"と"issue_year"はAPIの仕様により4文字まで。
