@@ -8,7 +8,7 @@
 
 ```shell
 $ cd 作業ディレクトリ
-$ python main.py gomanbunnoichichikeizu343.jpg http://example.com -u user@example.com -p password
+$ python main.py /home/hogeo/workingdirectory/gomanbunnoichichikeizu343.jpg http://example.com -u user@example.com -p password -c ./attributes.csv 
 ```
 
 - 作業ディレクトリには、読み込む地図と `attributes.csv`という名前のcsvファイルを前もって置いておく必要あり。 `attributes.csv`の形式については[attributes.csv](./attributes.csv)そのものを参照。
