@@ -8,7 +8,7 @@ This script contains a function which detects the four coners of a gaihozu map.
 MAP_NAME = "gomanbunnoichichikeizu343.jpg"
 
 
-def get_corners(map_name):
+def get_corners(map_path):
 
 import itertools
 import sys
@@ -17,7 +17,7 @@ import numpy
 
     from line_detector import detect_lines
 
-    lines = detect_lines(map_name)
+    lines = detect_lines(map_path)
 
     if lines is None:
         return None
@@ -149,8 +149,8 @@ import numpy
         return None
 
 import cv2
-corners = get_corners(MAP_NAME)
-color = cv2.imread(MAP_NAME, 1)  # 地図をカラーで読み込む。
+corners = get_corners(map_path)
+color = cv2.imread(map_path, 1)  # 地図をカラーで読み込む。
 color = cv2.rectangle(color, tuple(corners[0]), tuple(corners[3]), (0, 0, 255), 50)  # 矩形を描画。
 cv2.imshow("window_name", color)
 cv2.waitKey(0)

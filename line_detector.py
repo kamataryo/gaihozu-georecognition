@@ -5,9 +5,9 @@
 This script contains a function which detects straight lines in a gaihozu map that are possible four sides of the inner map.
 '''
 
-MAP_NAME = "gomanbunnoichichikeizu343.jpg"
+map_path = "gomanbunnoichichikeizu343.jpg"
 
-def detect_lines(map_name, binary_threshold = 100, erode_kernel = 3, erode_iteration = 2, line_accumulation = 10000, rho_precision = 2, theta_precision = numpy.pi/90):
+def detect_lines(map_path, binary_threshold = 100, erode_kernel = 3, erode_iteration = 2, line_accumulation = 10000, rho_precision = 2, theta_precision = numpy.pi/90):
 
     '''
     パラメーター説明。
@@ -22,7 +22,7 @@ def detect_lines(map_name, binary_threshold = 100, erode_kernel = 3, erode_itera
 import numpy
 import cv2
 
-    gray = cv2.imread(map_name, 0)  # 画像の読み込み。第2引数を0にするとグレースケール。
+    gray = cv2.imread(map_path, 0)  # 画像の読み込み。第2引数を0にするとグレースケール。
 
     "二値画像へ変換。1つ目の戻り値 (retへ代入) は無視。"
     ret, thresh = cv2.threshold(gray, binary_threshold, 255,
@@ -41,12 +41,12 @@ import cv2
 
     return lines
 
-lines = detect_lines(MAP_NAME)
+lines = detect_lines(map_path)
 
 import cv2
 
 '検出した直線をすべて描画する。'
-color = cv2.imread(MAP_NAME, 1)
+color = cv2.imread(map_path, 1)
 for line in lines:
     line = line[0]
     rho = line[0]
@@ -62,7 +62,7 @@ for line in lines:
     cv2.line(color,(x1,y1),(x2,y2),(0,0,255),50)
 
 """
-cv2.imshow("MAP_NAME", color)
+cv2.imshow("map_path", color)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 """
