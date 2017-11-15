@@ -31,7 +31,7 @@ def generate_json(map_path, csv_path):
     
     attributes["upload"] = "data:image/jpeg;base64," + str(encoded_file)[1:]  # [1:] is necessary to remove the begging "b"
 
-    attributes["upload_file_name"] = map_path
+    attributes["upload_file_name"] = map_name
 
     attributes = {k: v for k, v in attributes.items() if v and v[0]}
 
