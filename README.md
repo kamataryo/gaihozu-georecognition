@@ -1,5 +1,13 @@
 # gaihozu-georecognition
 
+## 依存ライブラリのインストール
+
+```shell
+$ pip install requests
+```
+
+## 使い方
+
 `main.py`を使って外邦図1枚をインポートする。他のスクリプトは `main.py`によって自動的に呼び出される。
 
 引数は、地図名 MapWarperのトップページのURL -u ユーザーのメールアドレス -p パスワード
