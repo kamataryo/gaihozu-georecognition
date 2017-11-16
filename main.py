@@ -45,4 +45,3 @@ import_data = generate_json(MAP_PATH, CSV_PATH)
 
 response = s.post(import_url, headers=import_headers, data=import_data)
 
-print(response)
