@@ -10,10 +10,10 @@ MAP_NAME = "gomanbunnoichichikeizu343.jpg"
 
 def get_corners(map_path):
 
-import itertools
-import sys
-import os
-import numpy
+    import itertools
+    import sys
+    import os
+    import numpy
 
     from line_detector import detect_lines
 

@@ -19,8 +19,8 @@ def detect_lines(map_path, binary_threshold = 100, erode_kernel = 3, erode_itera
     THETA_PRECISION = numpy.pi/90
 '''
 
-import numpy
-import cv2
+    import numpy
+    import cv2
 
     gray = cv2.imread(map_path, 0)  # 画像の読み込み。第2引数を0にするとグレースケール。
 
