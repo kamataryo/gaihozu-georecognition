@@ -25,7 +25,7 @@
 
 ```bash
 # リポジトリをクローン
-git clone https://github.com/yourusername/gaihozu-georecognition.git
+git clone https://github.com/kamataryo/gaihozu-georecognition.git
 cd gaihozu-georecognition
 
 # Poetryで依存関係をインストール
