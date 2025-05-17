@@ -14,12 +14,12 @@ class ImageProcessor:
 
     def __init__(
         self,
-        binary_threshold: int = 100,
-        erode_kernel: int = 3,
-        erode_iteration: int = 2,
-        line_accumulation: int = 10000,
-        rho_precision: int = 2,
-        theta_precision: float = np.pi / 90,
+        binary_threshold: int = 150,
+        erode_kernel: int = 2,
+        erode_iteration: int = 1,
+        line_accumulation: int = 2000,
+        rho_precision: int = 1,
+        theta_precision: float = np.pi / 180,
     ):
         """ImageProcessorを初期化します。
 
@@ -48,28 +48,59 @@ class ImageProcessor:
             検出された直線のリスト、検出できなかった場合はNone
         """
         try:
+            img = cv2.imread(image_path)
             # 画像の読み込み（グレースケール）
-            gray = cv2.imread(image_path, 0)
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
             if gray is None:
                 print(f"画像を読み込めませんでした: {image_path}")
                 return None
 
+            # edge
+            edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+            # DEBUG edges を出力
+            cv2.imwrite("0_debug_edges.jpg", edges)
+
             # 二値画像へ変換
             _, thresh = cv2.threshold(
-                gray, self.binary_threshold, 255, cv2.THRESH_BINARY_INV
+                edges, self.binary_threshold, 255, cv2.THRESH_BINARY_INV
             )
+
+            # DEBUG 画像を出力
+            cv2.imwrite("1_debug_binary.jpg", thresh)
 
             # 境界を削り細線を除去
             kernel = np.ones((self.erode_kernel, self.erode_kernel), np.uint8)
             eroded = cv2.erode(thresh, kernel, iterations=self.erode_iteration)
 
+            # DEBUG eroded を出力
+            cv2.imwrite("2_debug_eroded.jpg", eroded)
+
+            lines = cv2.HoughLines(edges,1,np.pi/180,750)
+
             # 辺の候補となる直線（極座標表示）を取得
-            lines = cv2.HoughLines(
-                eroded,
-                self.rho_precision,
-                self.theta_precision,
-                self.line_accumulation,
-            )
+            # lines = cv2.HoughLines(
+            #     eroded,
+            #     self.rho_precision,
+            #     self.theta_precision,
+            #     self.line_accumulation,
+            # )
+
+            eroded_colored = cv2.cvtColor(eroded, cv2.COLOR_GRAY2BGR)
+
+            # DEBUG 直線を画像の上に描画
+            # 色は赤、太さは2px
+            if lines is not None:
+              for rho, theta in lines[:, 0]:
+                  a = np.cos(theta)
+                  b = np.sin(theta)
+                  x0 = a * rho
+                  y0 = b * rho
+                  x1 = int(x0 + 1000 * (-b))
+                  y1 = int(y0 + 1000 * (a))
+                  x2 = int(x0 - 1000 * (-b))
+                  y2 = int(y0 - 1000 * (a))
+                  cv2.line(eroded_colored, (x1, y1), (x2, y2), (0, 255, 0), 2)
+              cv2.imwrite("3_debug_lines.jpg", eroded_colored)
 
             return lines
         except Exception as e:
@@ -195,7 +226,7 @@ class ImageProcessor:
 
         # 外側の太い枠から内側の細い枠まで頂点の座標を縦横へ調整
         # 注: この値は画像によって調整が必要かもしれません
-        margin = 210
+        margin = 0
         upper_left = [upper_left[0] + margin, upper_left[1] + margin]
         upper_right = [upper_right[0] - margin, upper_right[1] + margin]
         lower_left = [lower_left[0] + margin, lower_left[1] - margin]
