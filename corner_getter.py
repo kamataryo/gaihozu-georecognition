@@ -1,26 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-'''
-This script contains a function which detects the four coners of a gaihozu map.
-'''
-
-MAP_NAME = "gomanbunnoichichikeizu343.jpg"
-
+import itertools
+import numpy
+import cv2
+from line_detector import detect_lines
 
 def get_corners(map_path):
-
-import itertools
-import sys
-import os
-import numpy
-
-    from line_detector import detect_lines
 
     lines = detect_lines(map_path)
 
     if lines is None:
-        return None
+        return []
+    else:
+        print(f"Detected {len(lines)} lines.")
 
     """
     直線を4本に絞るため近接する直線の組み合わせをすべて取得。
@@ -123,6 +116,8 @@ import numpy
                 lower_left = corner
             elif corner[1] < x_average and corner[1] < y_average:
                 upper_left = corner
+            else:
+                return None
         '''
         upper_left = min(corners, key=sum)  # 左上の頂点の座標。
         lower_right = max(corners, key=sum)  # 右下の頂点の座標。
@@ -148,11 +143,26 @@ import numpy
     else:
         return None
 
-import cv2
-corners = get_corners(map_path)
-color = cv2.imread(map_path, 1)  # 地図をカラーで読み込む。
-color = cv2.rectangle(color, tuple(corners[0]), tuple(corners[3]), (0, 0, 255), 50)  # 矩形を描画。
-cv2.imshow("window_name", color)
-cv2.waitKey(0)
-cv2.destroyAllWindows()
+
+
+import os
+
+files = os.listdir("./samples/")
+for i, file in enumerate(files):
+  if not file.endswith(".jpg"):
+    continue
+  map_path = "./samples/" + file
+  corners = get_corners(map_path)
+  if corners is None:
+      print(f"{i+1}/{len(files)}: {file} -> No corners found")
+  else:
+    print(f"{i+1}/{len(files)}: {file}" + " -> " + str(corners))
+
+# 画像の読み込みと矩形の描画を行うためのコードは以下の通りです。
+
+# color = cv2.imread(map_path, 1)  # 地図をカラーで読み込む。
+# color = cv2.rectangle(color, tuple(corners[0]), tuple(corners[3]), (0, 0, 255), 50)  # 矩形を描画。
+# cv2.imshow("window_name", color)
+# cv2.waitKey(0)
+# cv2.destroyAllWindows()
 
