@@ -279,6 +279,78 @@
             font-style: italic;
         }
 
+        /* CSVプレビューのスタイル */
+        .csv-preview {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: white;
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        .csv-preview table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .csv-preview th,
+        .csv-preview td {
+            padding: 8px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+            white-space: nowrap;
+        }
+
+        .csv-preview th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .csv-preview tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .csv-preview .error-cell {
+            color: #721c24;
+            background-color: #f8d7da;
+        }
+
+        .csv-preview .success-cell {
+            color: #155724;
+        }
+
+        .csv-preview-header {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #ddd;
+            font-weight: bold;
+        }
+
+        .preview-button {
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .preview-button:hover {
+            background-color: #138496;
+        }
+
+        .preview-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
         /* レスポンシブデザイン */
         @media (max-width: 768px) {
             .container {
@@ -422,6 +494,8 @@
             </div>
 
             <button id="processButton" class="process-button">処理実行</button>
+
+            <button id="processAllButton" class="process-button" style="background-color: #2196F3;">すべての画像の交点を計算</button>
 
             <div class="loading" id="loading">
                 <div class="spinner"></div>
@@ -736,8 +810,144 @@
             }
         }
 
+        // すべての画像を処理する関数
+        async function processAllImages() {
+            // パラメータを取得
+            const parameters = {
+                binary_threshold: parseInt(document.getElementById('binaryThreshold').value),
+                erode_kernel: parseInt(document.getElementById('erodeKernel').value),
+                erode_iteration: parseInt(document.getElementById('erodeIteration').value),
+                line_accumulation: parseInt(document.getElementById('lineAccumulation').value),
+                rho_precision: parseInt(document.getElementById('rhoPrecision').value),
+                theta_precision: Math.PI / parseFloat(document.getElementById('thetaPrecision').value),
+                line_offset: parseInt(document.getElementById('lineOffset').value)
+            };
+
+            // UI状態を更新
+            document.getElementById('processButton').disabled = true;
+            document.getElementById('processAllButton').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('resultImage').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/process-all', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        parameters: parameters
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {  // ステータスコードが2xxの場合
+                    showStatus(data.message, 'success');
+
+                    // CSVファイルへのリンクとプレビューボタンを表示
+                    const statusDiv = document.getElementById('status');
+                    const linkElement = document.createElement('div');
+                    linkElement.innerHTML = `
+                        <a href="${data.csv_path}" download style="color: blue; text-decoration: underline; margin-top: 10px; display: inline-block;">CSVファイルをダウンロード</a>
+                        <button id="previewButton" class="preview-button">CSVプレビュー</button>
+                    `;
+                    statusDiv.appendChild(linkElement);
+
+                    // プレビューボタンのイベントリスナーを追加
+                    document.getElementById('previewButton').addEventListener('click', showCsvPreview);
+                } else {
+                    // エラーレスポンスの場合
+                    showStatus(data.error || '処理に失敗しました', 'error');
+                }
+            } catch (error) {
+                showStatus('処理中にエラーが発生しました: ' + error.message, 'error');
+            } finally {
+                document.getElementById('processButton').disabled = false;
+                document.getElementById('processAllButton').disabled = false;
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // CSVプレビューを表示する関数
+        async function showCsvPreview() {
+            try {
+                const response = await fetch('/api/csv-preview');
+                const data = await response.json();
+
+                if (response.ok) {
+                    // 既存のプレビューを削除
+                    const existingPreview = document.querySelector('.csv-preview');
+                    if (existingPreview) {
+                        existingPreview.remove();
+                    }
+
+                    // プレビューコンテナを作成
+                    const previewContainer = document.createElement('div');
+                    previewContainer.className = 'csv-preview';
+
+                    // ヘッダー情報を作成
+                    const headerDiv = document.createElement('div');
+                    headerDiv.className = 'csv-preview-header';
+                    headerDiv.textContent = `CSVプレビュー (全${data.total_rows}行中${data.preview_rows}行を表示)`;
+                    previewContainer.appendChild(headerDiv);
+
+                    // テーブルを作成
+                    const table = document.createElement('table');
+
+                    // ヘッダー行を作成
+                    const thead = document.createElement('thead');
+                    const headerRow = document.createElement('tr');
+                    data.headers.forEach(header => {
+                        const th = document.createElement('th');
+                        th.textContent = header;
+                        headerRow.appendChild(th);
+                    });
+                    thead.appendChild(headerRow);
+                    table.appendChild(thead);
+
+                    // データ行を作成
+                    const tbody = document.createElement('tbody');
+                    data.data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        row.forEach((cell, index) => {
+                            const td = document.createElement('td');
+                            td.textContent = cell;
+
+                            // エラーカラムの場合は特別なスタイルを適用
+                            if (index === data.headers.length - 1) { // 最後のカラム（errorカラム）
+                                if (cell && cell.trim() !== '') {
+                                    td.className = 'error-cell';
+                                } else {
+                                    td.className = 'success-cell';
+                                    td.textContent = '成功';
+                                }
+                            }
+
+                            tr.appendChild(td);
+                        });
+                        tbody.appendChild(tr);
+                    });
+                    table.appendChild(tbody);
+
+                    previewContainer.appendChild(table);
+
+                    // 結果コンテナの後に挿入
+                    const resultContainer = document.querySelector('.result-container');
+                    resultContainer.parentNode.insertBefore(previewContainer, resultContainer.nextSibling);
+
+                } else {
+                    showStatus(data.error || 'CSVプレビューの取得に失敗しました', 'error');
+                }
+            } catch (error) {
+                showStatus('CSVプレビューの取得中にエラーが発生しました: ' + error.message, 'error');
+            }
+        }
+
         // イベントリスナーを設定
         document.getElementById('processButton').addEventListener('click', processImage);
+        document.getElementById('processAllButton').addEventListener('click', processAllImages);
         document.getElementById('saveProfileButton').addEventListener('click', saveProfile);
         document.getElementById('deleteSelectedButton').addEventListener('click', deleteSelectedProfiles);
 

@@ -8,6 +8,7 @@ import numpy as np
 import os
 import base64
 import io
+import csv
 from line_detector import detect_lines
 
 def determine_orientation(line):
@@ -347,6 +348,208 @@ def process_image():
             'lines_count': len(lines) if lines is not None else 0,
             'groups_count': len(line_groups) if lines is not None else 0,
             'intersections_count': len(intersections) if lines is not None else 0
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/process-all', methods=['POST'])
+def process_all_images():
+    """すべての画像の交点を計算してCSVとして出力"""
+    try:
+        data = request.json
+        params = data.get('parameters', {})
+
+        # パラメータの取得（デフォルト値を設定）
+        binary_threshold = params.get('binary_threshold', 100)
+        erode_kernel = params.get('erode_kernel', 3)
+        erode_iteration = params.get('erode_iteration', 2)
+        line_accumulation = params.get('line_accumulation', 10000)
+        rho_precision = params.get('rho_precision', 2)
+        theta_precision = params.get('theta_precision', np.pi/90)
+        line_offset = params.get('line_offset', 0)
+
+        # 画像リストを取得
+        targets_dir = './targets'
+        images = []
+        if os.path.exists(targets_dir):
+            for file in os.listdir(targets_dir):
+                if file.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    images.append(file)
+
+        # 結果を格納するリスト
+        results = []
+
+        # 各画像に対して処理を実行
+        for image_name in images:
+            try:
+                image_path = os.path.join('./targets', image_name)
+
+                # 画像を読み込み
+                original_image = cv2.imread(image_path)
+                if original_image is None:
+                    # 画像読み込みエラー
+                    result = [image_name] + [''] * 8 + ['画像の読み込みに失敗しました']
+                    results.append(result)
+                    continue
+
+                # 画像サイズを取得
+                image_height, image_width = original_image.shape[:2]
+
+                # 線を検出
+                lines = detect_lines(
+                    image_path,
+                    binary_threshold=binary_threshold,
+                    erode_kernel=erode_kernel,
+                    erode_iteration=erode_iteration,
+                    line_accumulation=line_accumulation,
+                    rho_precision=rho_precision,
+                    theta_precision=theta_precision
+                )
+
+                if lines is None or len(lines) == 0:
+                    # 線が検出されなかった
+                    result = [image_name] + [''] * 8 + ['線が検出されませんでした']
+                    results.append(result)
+                    continue
+
+                # 直線をグループ化
+                line_groups = group_similar_lines(lines)
+
+                if len(line_groups) > 10:
+                    # グループ数が多すぎる
+                    result = [image_name] + [''] * 8 + [f'グループ数が多すぎます（{len(line_groups)}個）']
+                    results.append(result)
+                    continue
+
+                # オフセット適用後の代表線を計算
+                offset_representative_lines = []
+                for group in line_groups:
+                    if not group:  # 空のグループをスキップ
+                        continue
+
+                    # グループ内の全ての線のrhoとthetaを集める（オフセット適用後）
+                    rhos = []
+                    thetas = []
+                    for line_idx in group:
+                        line = lines[line_idx]
+
+                        # オフセット処理を適用
+                        if line_offset > 0:
+                            orientation = determine_orientation(line)
+                            line = offset_line(line, line_offset, image_width, image_height, orientation)
+
+                        rho, theta = line[0]
+                        rhos.append(rho)
+                        thetas.append(theta)
+
+                    # 平均を計算
+                    avg_rho = sum(rhos) / len(rhos)
+                    avg_theta = sum(thetas) / len(thetas)
+
+                    offset_representative_lines.append(np.array([[avg_rho, avg_theta]]))
+
+                # 交点を計算
+                intersections = []
+                for i, line1 in enumerate(offset_representative_lines):
+                    for j, line2 in enumerate(offset_representative_lines):
+                        if i < j:  # 重複を避けるため、i < j の組み合わせのみ処理
+                            intersection = compute_intersection(line1[0], line2[0])
+                            if intersection:
+                                intersections.append(intersection)
+
+                if len(intersections) != 4:
+                    # 交点が4つでない
+                    result = [image_name] + [''] * 8 + [f'交点が4つではありません（{len(intersections)}個）']
+                    results.append(result)
+                    continue
+
+                # 交点を左上、右上、左下、右下の順に並べ替え
+                x_coords = [p[0] for p in intersections]
+                y_coords = [p[1] for p in intersections]
+                x_avg = sum(x_coords) / 4
+                y_avg = sum(y_coords) / 4
+
+                sorted_intersections = [None] * 4
+                for point in intersections:
+                    x, y = point
+                    if x < x_avg and y < y_avg:  # 左上
+                        sorted_intersections[0] = point
+                    elif x > x_avg and y < y_avg:  # 右上
+                        sorted_intersections[1] = point
+                    elif x < x_avg and y > y_avg:  # 左下
+                        sorted_intersections[2] = point
+                    else:  # 右下
+                        sorted_intersections[3] = point
+
+                # Noneがある場合（並べ替えに失敗した場合）
+                if None in sorted_intersections:
+                    result = [image_name] + [''] * 8 + ['交点の並べ替えに失敗しました']
+                    results.append(result)
+                    continue
+
+                # 結果をリストに追加（成功）
+                result = [image_name]
+                for point in sorted_intersections:
+                    result.extend(point)
+                result.append('')  # エラーなし
+                results.append(result)
+
+            except Exception as e:
+                # 処理中に例外が発生した場合
+                result = [image_name] + [''] * 8 + [f'処理中にエラーが発生しました: {str(e)}']
+                results.append(result)
+
+        # CSVファイルを作成
+        csv_path = 'intersections.csv'
+        with open(csv_path, 'w', newline='', encoding='utf-8') as csvfile:
+            writer = csv.writer(csvfile)
+            # ヘッダーを書き込み
+            writer.writerow(['画像ファイル名', 'x0', 'y0', 'x1', 'y1', 'x2', 'y2', 'x3', 'y3', 'error'])
+            # データを書き込み
+            writer.writerows(results)
+
+        # 成功と失敗の数をカウント
+        success_count = sum(1 for result in results if result[-1] == '')
+
+        return jsonify({
+            'success': True,
+            'message': f'全{len(results)}個の画像を処理し、うち{success_count}画像の交点を計算しました。CSVファイルに保存しました。',
+            'csv_path': csv_path
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/csv-preview', methods=['GET'])
+def get_csv_preview():
+    """CSVファイルのプレビューを取得"""
+    try:
+        csv_path = 'intersections.csv'
+        if not os.path.exists(csv_path):
+            return jsonify({'error': 'CSVファイルが見つかりません'}), 404
+
+        # CSVファイルを読み込み
+        with open(csv_path, 'r', encoding='utf-8') as csvfile:
+            reader = csv.reader(csvfile)
+            rows = list(reader)
+
+        if len(rows) == 0:
+            return jsonify({'error': 'CSVファイルが空です'}), 400
+
+        # ヘッダーとデータを分離
+        headers = rows[0] if len(rows) > 0 else []
+        data = rows[1:] if len(rows) > 1 else []
+
+        # 最大100行まで表示
+        preview_data = data[:100]
+
+        return jsonify({
+            'success': True,
+            'headers': headers,
+            'data': preview_data,
+            'total_rows': len(data),
+            'preview_rows': len(preview_data)
         })
 
     except Exception as e:
