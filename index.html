@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Detection Parameter Tuner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .control-group {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slider {
+            flex: 1;
+            height: 5px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+        }
+
+        .value-display {
+            min-width: 80px;
+            text-align: center;
+            background-color: white;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .image-selection {
+            margin-bottom: 20px;
+        }
+
+        .image-selection select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .process-button {
+            width: 100%;
+            padding: 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .process-button:hover {
+            background-color: #45a049;
+        }
+
+        .process-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .result-container {
+            text-align: center;
+        }
+
+        .result-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Line Detection Parameter Tuner</h1>
+
+        <div class="image-selection">
+            <label for="imageSelect">画像を選択:</label>
+            <select id="imageSelect">
+                <option value="">画像を選択してください...</option>
+            </select>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="binaryThreshold">Binary Threshold (二値画像変換の閾値)</label>
+                <div class="slider-container">
+                    <input type="range" id="binaryThreshold" class="slider" min="1" max="255" value="100">
+                    <div class="value-display" id="binaryThresholdValue">100</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="erodeKernel">Erode Kernel (erodeのkernelの大きさ)</label>
+                <div class="slider-container">
+                    <input type="range" id="erodeKernel" class="slider" min="1" max="10" value="3">
+                    <div class="value-display" id="erodeKernelValue">3</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="erodeIteration">Erode Iteration (erodeの実行回数)</label>
+                <div class="slider-container">
+                    <input type="range" id="erodeIteration" class="slider" min="1" max="10" value="2">
+                    <div class="value-display" id="erodeIterationValue">2</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="lineAccumulation">Line Accumulation (直線認識の閾値)</label>
+                <div class="slider-container">
+                    <input type="range" id="lineAccumulation" class="slider" min="1000" max="50000" value="10000" step="1000">
+                    <div class="value-display" id="lineAccumulationValue">10000</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="rhoPrecision">Rho Precision (ρの精度)</label>
+                <div class="slider-container">
+                    <input type="range" id="rhoPrecision" class="slider" min="1" max="10" value="2">
+                    <div class="value-display" id="rhoPrecisionValue">2</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label for="thetaPrecision">Theta Precision (θの精度)</label>
+                <div class="slider-container">
+                    <input type="range" id="thetaPrecision" class="slider" min="1" max="180" value="2">
+                    <div class="value-display" id="thetaPrecisionValue">2</div>
+                </div>
+            </div>
+        </div>
+
+        <button id="processButton" class="process-button">処理実行</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>処理中...</p>
+        </div>
+
+        <div id="status"></div>
+
+        <div class="result-container">
+            <img id="resultImage" class="result-image" style="display: none;">
+        </div>
+    </div>
+
+    <script>
+        // スライダーの値表示を更新
+        function updateSliderValue(sliderId, valueId, transform = null) {
+            const slider = document.getElementById(sliderId);
+            const valueDisplay = document.getElementById(valueId);
+
+            slider.addEventListener('input', function() {
+                let value = this.value;
+                if (transform) {
+                    value = transform(value);
+                }
+                valueDisplay.textContent = value;
+            });
+        }
+
+        // 全スライダーの初期化
+        updateSliderValue('binaryThreshold', 'binaryThresholdValue');
+        updateSliderValue('erodeKernel', 'erodeKernelValue');
+        updateSliderValue('erodeIteration', 'erodeIterationValue');
+        updateSliderValue('lineAccumulation', 'lineAccumulationValue');
+        updateSliderValue('rhoPrecision', 'rhoPrecisionValue');
+        updateSliderValue('thetaPrecision', 'thetaPrecisionValue', (value) => {
+            return (Math.PI / parseFloat(value)).toFixed(4);
+        });
+
+        // 画像リストを取得
+        async function loadImages() {
+            try {
+                const response = await fetch('/api/images');
+                const data = await response.json();
+                const select = document.getElementById('imageSelect');
+
+                data.images.forEach(image => {
+                    const option = document.createElement('option');
+                    option.value = image;
+                    option.textContent = image;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                showStatus('画像リストの取得に失敗しました: ' + error.message, 'error');
+            }
+        }
+
+        // ステータス表示
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+        }
+
+        // 処理実行
+        async function processImage() {
+            const imageSelect = document.getElementById('imageSelect');
+            const selectedImage = imageSelect.value;
+
+            if (!selectedImage) {
+                showStatus('画像を選択してください', 'error');
+                return;
+            }
+
+            // パラメータを取得
+            const parameters = {
+                binary_threshold: parseInt(document.getElementById('binaryThreshold').value),
+                erode_kernel: parseInt(document.getElementById('erodeKernel').value),
+                erode_iteration: parseInt(document.getElementById('erodeIteration').value),
+                line_accumulation: parseInt(document.getElementById('lineAccumulation').value),
+                rho_precision: parseInt(document.getElementById('rhoPrecision').value),
+                theta_precision: Math.PI / parseFloat(document.getElementById('thetaPrecision').value)
+            };
+
+            // UI状態を更新
+            document.getElementById('processButton').disabled = true;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('status').style.display = 'none';
+            document.getElementById('resultImage').style.display = 'none';
+
+            try {
+                const response = await fetch('/api/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        image_name: selectedImage,
+                        parameters: parameters
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const resultImage = document.getElementById('resultImage');
+                    resultImage.src = data.image;
+                    resultImage.style.display = 'block';
+                    showStatus(`処理完了: ${data.lines_count}本の線を検出し、${data.groups_count}個のグループに分類しました`, 'success');
+                } else {
+                    showStatus('処理に失敗しました: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showStatus('処理中にエラーが発生しました: ' + error.message, 'error');
+            } finally {
+                document.getElementById('processButton').disabled = false;
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // イベントリスナーを設定
+        document.getElementById('processButton').addEventListener('click', processImage);
+
+        // ページ読み込み時に画像リストを取得
+        loadImages();
+    </script>
+</body>
+</html>
