@@ -189,6 +189,96 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* プロファイル管理のスタイル */
+        .profile-button {
+            width: 100%;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .save-button {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .save-button:hover {
+            background-color: #45a049;
+        }
+
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .delete-button:hover {
+            background-color: #da190b;
+        }
+
+        .delete-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .profile-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            background-color: white;
+        }
+
+        .profile-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .profile-item:last-child {
+            border-bottom: none;
+        }
+
+        .profile-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .profile-item.selected {
+            background-color: #e3f2fd;
+        }
+
+        .profile-checkbox {
+            margin-right: 8px;
+        }
+
+        .profile-info {
+            flex: 1;
+        }
+
+        .profile-name {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .profile-date {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .empty-profile-list {
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-style: italic;
+        }
+
         /* レスポンシブデザイン */
         @media (max-width: 768px) {
             .container {
@@ -241,6 +331,27 @@
     <div class="container">
         <div class="sidebar">
             <h2 style="margin-top: 0; color: #333; font-size: 18px;">パラメータ調整</h2>
+
+            <!-- 現在のプロファイル表示 -->
+            <div class="control-group" style="background-color: #e8f5e8; border-color: #4CAF50;">
+                <label>現在のプロファイル:</label>
+                <div id="currentProfileName" style="font-weight: bold; color: #2e7d32;">デフォルト</div>
+            </div>
+
+            <!-- プロファイル管理 -->
+            <div class="control-group">
+                <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">プロファイル管理</h3>
+                <button id="saveProfileButton" class="profile-button save-button">現在の設定を保存</button>
+
+                <div id="profileList" class="profile-list">
+                    <!-- プロファイルリストがここに表示される -->
+                </div>
+
+                <div class="profile-actions" style="margin-top: 10px;">
+                    <button id="deleteSelectedButton" class="profile-button delete-button" disabled>選択したプロファイルを削除</button>
+                </div>
+            </div>
+
             <div class="controls">
                 <div class="control-group">
                     <label for="binaryThreshold">Binary Threshold (二値画像変換の閾値)</label>
@@ -434,11 +545,191 @@
             }
         }
 
+        // プロファイル管理機能
+        let currentProfileName = 'デフォルト';
+        const STORAGE_KEY = 'lineDetectionProfiles';
+
+        // 現在のパラメータを取得
+        function getCurrentParameters() {
+            return {
+                binary_threshold: parseInt(document.getElementById('binaryThreshold').value),
+                erode_kernel: parseInt(document.getElementById('erodeKernel').value),
+                erode_iteration: parseInt(document.getElementById('erodeIteration').value),
+                line_accumulation: parseInt(document.getElementById('lineAccumulation').value),
+                rho_precision: parseInt(document.getElementById('rhoPrecision').value),
+                theta_precision: Math.PI / parseFloat(document.getElementById('thetaPrecision').value),
+                line_offset: parseInt(document.getElementById('lineOffset').value)
+            };
+        }
+
+        // パラメータをスライダーに適用
+        function applyParameters(parameters) {
+            document.getElementById('binaryThreshold').value = parameters.binary_threshold;
+            document.getElementById('binaryThresholdValue').textContent = parameters.binary_threshold;
+
+            document.getElementById('erodeKernel').value = parameters.erode_kernel;
+            document.getElementById('erodeKernelValue').textContent = parameters.erode_kernel;
+
+            document.getElementById('erodeIteration').value = parameters.erode_iteration;
+            document.getElementById('erodeIterationValue').textContent = parameters.erode_iteration;
+
+            document.getElementById('lineAccumulation').value = parameters.line_accumulation;
+            document.getElementById('lineAccumulationValue').textContent = parameters.line_accumulation;
+
+            document.getElementById('rhoPrecision').value = parameters.rho_precision;
+            document.getElementById('rhoPrecisionValue').textContent = parameters.rho_precision;
+
+            const thetaValue = Math.PI / parameters.theta_precision;
+            document.getElementById('thetaPrecision').value = thetaValue;
+            document.getElementById('thetaPrecisionValue').textContent = parameters.theta_precision.toFixed(4);
+
+            document.getElementById('lineOffset').value = parameters.line_offset;
+            document.getElementById('lineOffsetValue').textContent = parameters.line_offset;
+        }
+
+        // ローカルストレージからプロファイルを取得
+        function getProfiles() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : { profiles: [] };
+        }
+
+        // ローカルストレージにプロファイルを保存
+        function saveProfiles(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+
+        // プロファイルを保存
+        function saveProfile() {
+            const name = window.prompt('プロファイル名を入力してください:');
+            if (!name || name.trim() === '') {
+                return;
+            }
+
+            const data = getProfiles();
+            const newProfile = {
+                id: Date.now().toString(),
+                name: name.trim(),
+                timestamp: new Date().toLocaleString('ja-JP'),
+                parameters: getCurrentParameters()
+            };
+
+            data.profiles.push(newProfile);
+            saveProfiles(data);
+            updateProfileList();
+            showStatus(`プロファイル「${name}」を保存しました`, 'success');
+        }
+
+        // プロファイルリストを更新
+        function updateProfileList() {
+            const data = getProfiles();
+            const profileList = document.getElementById('profileList');
+
+            if (data.profiles.length === 0) {
+                profileList.innerHTML = '<div class="empty-profile-list">保存されたプロファイルはありません</div>';
+                return;
+            }
+
+            profileList.innerHTML = data.profiles.map(profile => `
+                <div class="profile-item" data-profile-id="${profile.id}">
+                    <input type="checkbox" class="profile-checkbox" data-profile-id="${profile.id}">
+                    <div class="profile-info">
+                        <div class="profile-name">${profile.name}</div>
+                        <div class="profile-date">${profile.timestamp}</div>
+                    </div>
+                </div>
+            `).join('');
+
+            // プロファイル項目のクリックイベントを設定
+            profileList.querySelectorAll('.profile-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    if (e.target.type === 'checkbox') {
+                        updateDeleteButton();
+                        return;
+                    }
+
+                    const profileId = item.dataset.profileId;
+                    const profile = data.profiles.find(p => p.id === profileId);
+                    if (profile) {
+                        applyParameters(profile.parameters);
+                        currentProfileName = profile.name;
+                        updateCurrentProfileName();
+
+                        // 選択状態を更新
+                        profileList.querySelectorAll('.profile-item').forEach(i => i.classList.remove('selected'));
+                        item.classList.add('selected');
+
+                        showStatus(`プロファイル「${profile.name}」を適用しました`, 'success');
+                    }
+                });
+            });
+
+            // チェックボックスのイベントを設定
+            profileList.querySelectorAll('.profile-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateDeleteButton);
+            });
+        }
+
+        // 削除ボタンの状態を更新
+        function updateDeleteButton() {
+            const checkedBoxes = document.querySelectorAll('.profile-checkbox:checked');
+            document.getElementById('deleteSelectedButton').disabled = checkedBoxes.length === 0;
+        }
+
+        // 選択されたプロファイルを削除
+        function deleteSelectedProfiles() {
+            const checkedBoxes = document.querySelectorAll('.profile-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                return;
+            }
+
+            const profileIds = Array.from(checkedBoxes).map(cb => cb.dataset.profileId);
+            const data = getProfiles();
+            const profilesToDelete = data.profiles.filter(p => profileIds.includes(p.id));
+
+            const confirmMessage = `以下のプロファイルを削除しますか？\n${profilesToDelete.map(p => p.name).join('\n')}`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            data.profiles = data.profiles.filter(p => !profileIds.includes(p.id));
+            saveProfiles(data);
+            updateProfileList();
+            updateDeleteButton();
+
+            showStatus(`${profilesToDelete.length}個のプロファイルを削除しました`, 'success');
+        }
+
+        // 現在のプロファイル名を更新
+        function updateCurrentProfileName() {
+            document.getElementById('currentProfileName').textContent = currentProfileName;
+        }
+
+        // スライダー変更時に現在のプロファイル名をリセット
+        function onParameterChange() {
+            if (currentProfileName !== 'デフォルト') {
+                currentProfileName = 'デフォルト';
+                updateCurrentProfileName();
+
+                // 選択状態をクリア
+                document.querySelectorAll('.profile-item').forEach(item => {
+                    item.classList.remove('selected');
+                });
+            }
+        }
+
         // イベントリスナーを設定
         document.getElementById('processButton').addEventListener('click', processImage);
+        document.getElementById('saveProfileButton').addEventListener('click', saveProfile);
+        document.getElementById('deleteSelectedButton').addEventListener('click', deleteSelectedProfiles);
 
-        // ページ読み込み時に画像リストを取得
+        // スライダーの変更を監視
+        ['binaryThreshold', 'erodeKernel', 'erodeIteration', 'lineAccumulation', 'rhoPrecision', 'thetaPrecision', 'lineOffset'].forEach(id => {
+            document.getElementById(id).addEventListener('input', onParameterChange);
+        });
+
+        // ページ読み込み時に画像リストとプロファイルリストを取得
         loadImages();
+        updateProfileList();
     </script>
 </body>
 </html>

@@ -68,7 +68,7 @@ def draw_line_full_extent(image, line, color, thickness=3):
     # 元の方法を使用：十分に長い線を描画
     # 画像サイズに関係なく、十分に長い線を描画することで
     # 画像の境界で自然に切り取られる
-    extension = 2000  # 十分に大きな値
+    extension = 20000  # 十分に大きな値
     x1 = int(x0 + extension * (-b))
     y1 = int(y0 + extension * (a))
     x2 = int(x0 - extension * (-b))
