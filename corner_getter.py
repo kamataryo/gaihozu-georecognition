@@ -147,11 +147,11 @@ def get_corners(map_path):
 
 import os
 
-files = os.listdir("./samples/")
+files = os.listdir("./targets/")
 for i, file in enumerate(files):
   if not file.endswith(".jpg"):
     continue
-  map_path = "./samples/" + file
+  map_path = "./targets/" + file
   corners = get_corners(map_path)
   if corners is None:
       print(f"{i+1}/{len(files)}: {file} -> No corners found")

@@ -99,3 +99,6 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+targets/*
+!targets/.gitkeep

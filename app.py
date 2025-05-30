@@ -66,10 +66,10 @@ CORS(app)
 @app.route('/api/images', methods=['GET'])
 def get_images():
     """サンプル画像のリストを取得"""
-    samples_dir = './samples'
+    targets_dir = './targets'
     images = []
-    if os.path.exists(samples_dir):
-        for file in os.listdir(samples_dir):
+    if os.path.exists(targets_dir):
+        for file in os.listdir(targets_dir):
             if file.lower().endswith(('.jpg', '.jpeg', '.png')):
                 images.append(file)
     return jsonify({'images': sorted(images)})
@@ -91,7 +91,7 @@ def process_image():
         theta_precision = params.get('theta_precision', np.pi/90)
 
         # 画像パスの構築
-        image_path = os.path.join('./samples', image_name)
+        image_path = os.path.join('./targets', image_name)
 
         if not os.path.exists(image_path):
             return jsonify({'error': 'Image not found'}), 404
