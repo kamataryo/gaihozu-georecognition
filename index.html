@@ -289,6 +289,14 @@
                         <div class="value-display" id="thetaPrecisionValue">2</div>
                     </div>
                 </div>
+
+                <div class="control-group">
+                    <label for="lineOffset">オフセット（0 - 100%）</label>
+                    <div class="slider-container">
+                        <input type="range" id="lineOffset" class="slider" min="0" max="100" value="0">
+                        <div class="value-display" id="lineOffsetValue">0</div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -341,6 +349,7 @@
         updateSliderValue('thetaPrecision', 'thetaPrecisionValue', (value) => {
             return (Math.PI / parseFloat(value)).toFixed(4);
         });
+        updateSliderValue('lineOffset', 'lineOffsetValue');
 
         // 画像リストを取得
         async function loadImages() {
@@ -385,7 +394,8 @@
                 erode_iteration: parseInt(document.getElementById('erodeIteration').value),
                 line_accumulation: parseInt(document.getElementById('lineAccumulation').value),
                 rho_precision: parseInt(document.getElementById('rhoPrecision').value),
-                theta_precision: Math.PI / parseFloat(document.getElementById('thetaPrecision').value)
+                theta_precision: Math.PI / parseFloat(document.getElementById('thetaPrecision').value),
+                line_offset: parseInt(document.getElementById('lineOffset').value)
             };
 
             // UI状態を更新

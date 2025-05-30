@@ -10,6 +10,72 @@ import base64
 import io
 from line_detector import detect_lines
 
+def determine_orientation(line):
+    """
+    線の向き（縦/横）を判定する関数
+    """
+    rho, theta = line[0]
+    # theta が π/4 より小さいか、3π/4 より大きい場合は縦向き
+    # それ以外は横向き
+    return 'vertical' if (theta < np.pi/4 or theta > 3*np.pi/4) else 'horizontal'
+
+def offset_line(line, offset_percentage, image_width, image_height, orientation):
+    """
+    線をオフセットさせる関数
+    """
+    rho, theta = line[0]
+    # 画像サイズに基づいてオフセット量を計算
+    max_offset = min(image_width, image_height) * 0.3  # 最大30%までオフセット可能
+    offset_amount = max_offset * (offset_percentage / 100.0)
+
+    # 向きに応じてオフセット方向を決定
+    if orientation == 'vertical':
+        # 縦線の場合、内側に向かってオフセット
+        # 画像の中心からの距離に基づいて方向を決定
+        center_x = image_width / 2
+        line_x = rho * np.cos(theta)
+        if line_x > center_x:
+            # 右側の線は左に（内側に）オフセット
+            new_rho = rho - offset_amount
+        else:
+            # 左側の線は右に（内側に）オフセット
+            new_rho = rho + offset_amount
+    else:
+        # 横線の場合、内側に向かってオフセット
+        # 画像の中心からの距離に基づいて方向を決定
+        center_y = image_height / 2
+        line_y = rho * np.sin(theta)
+        if line_y > center_y:
+            # 下側の線は上に（内側に）オフセット
+            new_rho = rho - offset_amount
+        else:
+            # 上側の線は下に（内側に）オフセット
+            new_rho = rho + offset_amount
+
+    return np.array([[new_rho, theta]])
+
+def draw_line_full_extent(image, line, color, thickness=3):
+    """
+    線を画像の端から端まで描画する関数
+    元の描画方法を使用して、十分に長い線を描画
+    """
+    rho, theta = line[0]
+    a = np.cos(theta)
+    b = np.sin(theta)
+    x0 = a * rho
+    y0 = b * rho
+
+    # 元の方法を使用：十分に長い線を描画
+    # 画像サイズに関係なく、十分に長い線を描画することで
+    # 画像の境界で自然に切り取られる
+    extension = 2000  # 十分に大きな値
+    x1 = int(x0 + extension * (-b))
+    y1 = int(y0 + extension * (a))
+    x2 = int(x0 - extension * (-b))
+    y2 = int(y0 - extension * (a))
+
+    cv2.line(image, (x1, y1), (x2, y2), color, thickness)
+
 def group_similar_lines(lines):
     """
     類似した直線をグループ化する関数
@@ -89,6 +155,7 @@ def process_image():
         line_accumulation = params.get('line_accumulation', 10000)
         rho_precision = params.get('rho_precision', 2)
         theta_precision = params.get('theta_precision', np.pi/90)
+        line_offset = params.get('line_offset', 0)  # デフォルト値は0（オフセットなし）
 
         # 画像パスの構築
         image_path = os.path.join('./targets', image_name)
@@ -131,20 +198,21 @@ def process_image():
                 (255, 165, 0),  # オレンジ
             ]
 
+            # 画像サイズを取得
+            image_height, image_width = result_image.shape[:2]
+
             for group_idx, group in enumerate(line_groups):
                 color = colors[group_idx % len(colors)]
                 for line_idx in group:
                     line = lines[line_idx]
-                    rho, theta = line[0]
-                    a = np.cos(theta)
-                    b = np.sin(theta)
-                    x0 = a * rho
-                    y0 = b * rho
-                    x1 = int(x0 + 1000 * (-b))
-                    y1 = int(y0 + 1000 * (a))
-                    x2 = int(x0 - 1000 * (-b))
-                    y2 = int(y0 - 1000 * (a))
-                    cv2.line(result_image, (x1, y1), (x2, y2), color, 3)
+
+                    # オフセット処理を適用
+                    if line_offset > 0:
+                        orientation = determine_orientation(line)
+                        line = offset_line(line, line_offset, image_width, image_height, orientation)
+
+                    # 線を画像の端から端まで描画
+                    draw_line_full_extent(result_image, line, color, 3)
 
         # 画像をbase64エンコード
         _, buffer = cv2.imencode('.jpg', result_image)
