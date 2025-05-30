@@ -76,6 +76,79 @@ def draw_line_full_extent(image, line, color, thickness=3):
 
     cv2.line(image, (x1, y1), (x2, y2), color, thickness)
 
+def calculate_representative_lines(line_groups, lines):
+    """
+    各グループの代表線を計算する関数
+    グループ内の全ての線のrhoとthetaの平均を取る
+    """
+    representative_lines = []
+
+    for group in line_groups:
+        if not group:  # 空のグループをスキップ
+            continue
+
+        # グループ内の全ての線のrhoとthetaを集める
+        rhos = []
+        thetas = []
+        for line_idx in group:
+            rho, theta = lines[line_idx][0]
+            rhos.append(rho)
+            thetas.append(theta)
+
+        # 平均を計算
+        avg_rho = sum(rhos) / len(rhos)
+        avg_theta = sum(thetas) / len(thetas)
+
+        representative_lines.append(np.array([[avg_rho, avg_theta]]))
+
+    return representative_lines
+
+def compute_intersection(line1, line2):
+    """
+    2つの線の交点を計算する関数
+    line1, line2: [rho, theta] 形式の線のパラメータ
+    """
+    rho1, theta1 = line1
+    rho2, theta2 = line2
+
+    # 平行線の場合は交点なし
+    if abs(theta1 - theta2) < 1e-10 or abs(abs(theta1 - theta2) - np.pi) < 1e-10:
+        return None
+
+    # 線の方程式の係数を計算
+    a1 = np.cos(theta1)
+    b1 = np.sin(theta1)
+    a2 = np.cos(theta2)
+    b2 = np.sin(theta2)
+
+    # 連立方程式を解いて交点を計算
+    det = a1 * b2 - a2 * b1
+    if abs(det) < 1e-10:  # 行列式がほぼ0なら平行
+        return None
+
+    x = (b2 * rho1 - b1 * rho2) / det
+    y = (-a2 * rho1 + a1 * rho2) / det
+
+    return (int(x), int(y))
+
+def calculate_intersections(line_groups, lines):
+    """
+    グループ化された線同士の交点を計算する関数
+    """
+    # 各グループの代表線を計算
+    representative_lines = calculate_representative_lines(line_groups, lines)
+
+    intersections = []
+    # 全ての代表線の組み合わせについて交点を計算
+    for i, line1 in enumerate(representative_lines):
+        for j, line2 in enumerate(representative_lines):
+            if i < j:  # 重複を避けるため、i < j の組み合わせのみ処理
+                intersection = compute_intersection(line1[0], line2[0])
+                if intersection:
+                    intersections.append(intersection)
+
+    return intersections
+
 def group_similar_lines(lines):
     """
     類似した直線をグループ化する関数
@@ -186,6 +259,13 @@ def process_image():
             # 直線をグループ化する
             line_groups = group_similar_lines(lines)
 
+            # グループ数が10を超える場合はエラーを返す
+            if len(line_groups) > 10:
+                return jsonify({
+                    'error': 'グループ数が多すぎます（最大10個まで）。パラメータを調整してグループ数を減らしてください。',
+                    'groups_count': len(line_groups)
+                }), 400  # Bad Request ステータスコード
+
             # グループごとに異なる色で描画
             colors = [
                 (0, 0, 255),    # 赤
@@ -214,6 +294,49 @@ def process_image():
                     # 線を画像の端から端まで描画
                     draw_line_full_extent(result_image, line, color, 3)
 
+            # オフセットが適用された線の代表線を計算して交点を求める
+            offset_representative_lines = []
+            for group in line_groups:
+                if not group:  # 空のグループをスキップ
+                    continue
+
+                # グループ内の全ての線のrhoとthetaを集める（オフセット適用後）
+                rhos = []
+                thetas = []
+                for line_idx in group:
+                    line = lines[line_idx]
+
+                    # オフセット処理を適用
+                    if line_offset > 0:
+                        orientation = determine_orientation(line)
+                        line = offset_line(line, line_offset, image_width, image_height, orientation)
+
+                    rho, theta = line[0]
+                    rhos.append(rho)
+                    thetas.append(theta)
+
+                # 平均を計算
+                avg_rho = sum(rhos) / len(rhos)
+                avg_theta = sum(thetas) / len(thetas)
+
+                offset_representative_lines.append(np.array([[avg_rho, avg_theta]]))
+
+            # オフセット適用後の代表線同士の交点を計算
+            intersections = []
+            for i, line1 in enumerate(offset_representative_lines):
+                for j, line2 in enumerate(offset_representative_lines):
+                    if i < j:  # 重複を避けるため、i < j の組み合わせのみ処理
+                        intersection = compute_intersection(line1[0], line2[0])
+                        if intersection:
+                            intersections.append(intersection)
+
+            # 交点を画像上に描画
+            for point in intersections:
+                # 交点が画像の範囲内にある場合のみ描画
+                if 0 <= point[0] < image_width and 0 <= point[1] < image_height:
+                    cv2.circle(result_image, point, 10, (255, 255, 255), -1)  # 白い円で交点を描画
+                    cv2.circle(result_image, point, 10, (0, 0, 0), 2)  # 黒い輪郭線
+
         # 画像をbase64エンコード
         _, buffer = cv2.imencode('.jpg', result_image)
         img_base64 = base64.b64encode(buffer).decode('utf-8')
@@ -222,7 +345,8 @@ def process_image():
             'success': True,
             'image': f'data:image/jpeg;base64,{img_base64}',
             'lines_count': len(lines) if lines is not None else 0,
-            'groups_count': len(line_groups) if lines is not None else 0
+            'groups_count': len(line_groups) if lines is not None else 0,
+            'intersections_count': len(intersections) if lines is not None else 0
         })
 
     except Exception as e:

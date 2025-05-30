@@ -529,16 +529,35 @@
 
                 const data = await response.json();
 
-                if (data.success) {
+                if (response.ok) {  // ステータスコードが2xxの場合
                     const resultImage = document.getElementById('resultImage');
                     resultImage.src = data.image;
                     resultImage.style.display = 'block';
-                    showStatus(`処理完了: ${data.lines_count}本の線を検出し、${data.groups_count}個のグループに分類しました`, 'success');
+
+                    let statusMessage = `処理完了: ${data.lines_count}本の線を検出し、${data.groups_count}個のグループに分類しました`;
+
+                    if (data.intersections_count > 0) {
+                        statusMessage += `。${data.intersections_count}個の交点を検出しました`;
+                    }
+
+                    showStatus(statusMessage, 'success');
                 } else {
-                    showStatus('処理に失敗しました: ' + data.error, 'error');
+                    // エラーレスポンスの場合
+                    let errorMessage = data.error || '処理に失敗しました';
+
+                    // グループ数のエラーの場合、追加情報を表示
+                    if (data.groups_count) {
+                        errorMessage += ` (検出されたグループ数: ${data.groups_count})`;
+                    }
+
+                    showStatus(errorMessage, 'error');
+
+                    // エラーの場合は結果画像を非表示に
+                    document.getElementById('resultImage').style.display = 'none';
                 }
             } catch (error) {
                 showStatus('処理中にエラーが発生しました: ' + error.message, 'error');
+                document.getElementById('resultImage').style.display = 'none';
             } finally {
                 document.getElementById('processButton').disabled = false;
                 document.getElementById('loading').style.display = 'none';
