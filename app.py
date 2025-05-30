@@ -9,6 +9,7 @@ import os
 import base64
 import io
 import csv
+import argparse
 from line_detector import detect_lines
 
 def determine_orientation(line):
@@ -200,16 +201,24 @@ def group_similar_lines(lines):
 
     return all_groups
 
+# コマンドライン引数の解析
+parser = argparse.ArgumentParser(description='地図の図郭検出パラメータ調整ツール')
+parser.add_argument('target_dir', nargs='?', default='./targets',
+                    help='処理対象の画像が格納されているディレクトリ（デフォルト: ./targets）')
+args = parser.parse_args()
+
+# グローバル変数として設定
+TARGETS_DIR = args.target_dir
+
 app = Flask(__name__)
 CORS(app)
 
 @app.route('/api/images', methods=['GET'])
 def get_images():
     """サンプル画像のリストを取得"""
-    targets_dir = './targets'
     images = []
-    if os.path.exists(targets_dir):
-        for file in os.listdir(targets_dir):
+    if os.path.exists(TARGETS_DIR):
+        for file in os.listdir(TARGETS_DIR):
             if file.lower().endswith(('.jpg', '.jpeg', '.png')):
                 images.append(file)
     return jsonify({'images': sorted(images)})
@@ -232,7 +241,7 @@ def process_image():
         line_offset = params.get('line_offset', 0)  # デフォルト値は0（オフセットなし）
 
         # 画像パスの構築
-        image_path = os.path.join('./targets', image_name)
+        image_path = os.path.join(TARGETS_DIR, image_name)
 
         if not os.path.exists(image_path):
             return jsonify({'error': 'Image not found'}), 404
@@ -370,10 +379,9 @@ def process_all_images():
         line_offset = params.get('line_offset', 0)
 
         # 画像リストを取得
-        targets_dir = './targets'
         images = []
-        if os.path.exists(targets_dir):
-            for file in os.listdir(targets_dir):
+        if os.path.exists(TARGETS_DIR):
+            for file in os.listdir(TARGETS_DIR):
                 if file.lower().endswith(('.jpg', '.jpeg', '.png')):
                     images.append(file)
 
@@ -383,7 +391,7 @@ def process_all_images():
         # 各画像に対して処理を実行
         for image_name in images:
             try:
-                image_path = os.path.join('./targets', image_name)
+                image_path = os.path.join(TARGETS_DIR, image_name)
 
                 # 画像を読み込み
                 original_image = cv2.imread(image_path)

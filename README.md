@@ -26,7 +26,7 @@
 
 1. リポジトリをクローンまたはダウンロード
 ```bash
-git clone <repository-url>
+git clone https://github.com/kamataryo/gaihozu-georecognition
 cd gaihozu-georecognition
 ```
 
@@ -39,8 +39,28 @@ pip install -r requirements.txt
 
 ### 1. サーバーの起動
 
+#### 基本的な起動（デフォルトのtargetsディレクトリを使用）
+
 ```bash
 python app.py
+```
+
+#### 任意のディレクトリを指定して起動
+
+```bash
+python app.py /path/to/your/images
+```
+
+例：
+```bash
+# 相対パスで指定
+python app.py my_maps
+
+# 絶対パスで指定
+python app.py /Users/username/Documents/map_images
+
+# Windowsの場合
+python app.py C:\Users\username\Documents\map_images
 ```
 
 サーバーが起動すると、以下のメッセージが表示されます：
@@ -212,7 +232,7 @@ python app.py
 
 ### 機能概要
 
-- **一括処理**: `targets/`フォルダ内のすべての画像を自動処理
+- **一括処理**: 指定したディレクトリ内のすべての画像を自動処理
 - **現在のパラメータ適用**: 調整済みのパラメータ設定をすべての画像に適用
 - **CSV出力**: 処理結果を構造化されたCSVファイルとして保存
 - **エラーハンドリング**: 処理に失敗した画像についても詳細なエラー情報を記録
@@ -228,7 +248,7 @@ python app.py
 5. **CSV取得**: ダウンロードリンクまたはプレビュー機能で結果を確認
 
 #### 処理対象画像
-- **対象ディレクトリ**: `targets/`フォルダ
+- **対象ディレクトリ**: 起動時に指定したディレクトリ（デフォルト: `targets/`フォルダ）
 - **対応形式**: .jpg, .jpeg, .png
 - **処理順序**: ファイル名のアルファベット順
 - **自動検出**: フォルダ内の対応形式ファイルを自動的に検出
@@ -469,7 +489,7 @@ CSVファイルのプレビューを取得
 ## 開発・カスタマイズ
 
 ### 新しい画像の追加
-`targets/`ディレクトリに画像ファイル（.jpg, .jpeg, .png）を追加するだけで、自動的にドロップダウンメニューに表示されます。
+指定したディレクトリ（デフォルト: `targets/`）に画像ファイル（.jpg, .jpeg, .png）を追加するだけで、自動的にドロップダウンメニューに表示されます。
 
 ### パラメータ範囲の変更
 `index.html`のスライダー設定を変更することで、パラメータの範囲を調整できます。
