@@ -102,3 +102,4 @@ ENV/
 
 targets/*
 !targets/.gitkeep
+!targets/sample*.jpg

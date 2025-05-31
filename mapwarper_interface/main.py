@@ -10,7 +10,7 @@ import re
 import sys
 import json
 import requests
-from json_generator import generate_json
+from mapwarper_interface.json_generator import generate_json
 
 parser = argparse.ArgumentParser(description='generate a json file from a CSV to import a map to Map Warper.')
 parser.add_argument('map', type=str, help='path of the map you import')
