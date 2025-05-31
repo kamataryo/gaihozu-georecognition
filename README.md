@@ -20,6 +20,8 @@
 
 ## インストール
 
+操作はシェル（PowerShell 等）で行ってください。
+
 1. リポジトリをクローンまたはダウンロード
 ```bash
 git clone https://github.com/kamataryo/gaihozu-georecognition
