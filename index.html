@@ -429,7 +429,7 @@
                     <label for="binaryThreshold">Binary Threshold (二値画像変換の閾値)</label>
                     <div class="slider-container">
                         <input type="range" id="binaryThreshold" class="slider" min="1" max="255" value="100">
-                        <div class="value-display" id="binaryThresholdValue">100</div>
+                        <input type="number" class="value-display" id="binaryThresholdValue" value="100" min="1" max="255">
                     </div>
                 </div>
 
@@ -437,7 +437,7 @@
                     <label for="erodeKernel">Erode Kernel (erodeのkernelの大きさ)</label>
                     <div class="slider-container">
                         <input type="range" id="erodeKernel" class="slider" min="1" max="10" value="3">
-                        <div class="value-display" id="erodeKernelValue">3</div>
+                        <input type="number" class="value-display" id="erodeKernelValue" value="3" min="1" max="10">
                     </div>
                 </div>
 
@@ -445,7 +445,7 @@
                     <label for="erodeIteration">Erode Iteration (erodeの実行回数)</label>
                     <div class="slider-container">
                         <input type="range" id="erodeIteration" class="slider" min="1" max="10" value="2">
-                        <div class="value-display" id="erodeIterationValue">2</div>
+                        <input type="number" class="value-display" id="erodeIterationValue" value="2" min="1" max="10">
                     </div>
                 </div>
 
@@ -453,7 +453,7 @@
                     <label for="lineAccumulation">Line Accumulation (直線認識の閾値)</label>
                     <div class="slider-container">
                         <input type="range" id="lineAccumulation" class="slider" min="50" max="50000" value="10000" step="50">
-                        <div class="value-display" id="lineAccumulationValue">10000</div>
+                        <input type="number" class="value-display" id="lineAccumulationValue" value="10000" min="50" max="50000" step="50">
                     </div>
                 </div>
 
@@ -461,7 +461,7 @@
                     <label for="rhoPrecision">Rho Precision (ρの精度)</label>
                     <div class="slider-container">
                         <input type="range" id="rhoPrecision" class="slider" min="1" max="10" value="2">
-                        <div class="value-display" id="rhoPrecisionValue">2</div>
+                        <input type="number" class="value-display" id="rhoPrecisionValue" value="2" min="1" max="10">
                     </div>
                 </div>
 
@@ -469,7 +469,7 @@
                     <label for="thetaPrecision">Theta Precision (θの精度)</label>
                     <div class="slider-container">
                         <input type="range" id="thetaPrecision" class="slider" min="1" max="180" value="2">
-                        <div class="value-display" id="thetaPrecisionValue">2</div>
+                        <input type="number" class="value-display" id="thetaPrecisionValue" value="0.0175" step="0.0001" readonly>
                     </div>
                 </div>
 
@@ -477,7 +477,7 @@
                     <label for="lineOffset">オフセット（0 - 100%）</label>
                     <div class="slider-container">
                         <input type="range" id="lineOffset" class="slider" min="0" max="100" value="0" step="0.2">
-                        <div class="value-display" id="lineOffsetValue">0</div>
+                        <input type="number" class="value-display" id="lineOffsetValue" value="0" min="0" max="100" step="0.2">
                     </div>
                 </div>
             </div>
@@ -511,30 +511,91 @@
     </div>
 
     <script>
-        // スライダーの値表示を更新
-        function updateSliderValue(sliderId, valueId, transform = null) {
+        // スライダーとinputの双方向同期
+        function setupSliderInputSync(sliderId, inputId, transform = null, reverseTransform = null) {
             const slider = document.getElementById(sliderId);
-            const valueDisplay = document.getElementById(valueId);
+            const input = document.getElementById(inputId);
 
+            // スライダーからinputへの同期
             slider.addEventListener('input', function() {
                 let value = this.value;
                 if (transform) {
                     value = transform(value);
                 }
-                valueDisplay.textContent = value;
+                if (input.type === 'number') {
+                    input.value = value;
+                } else {
+                    input.textContent = value;
+                }
             });
+
+            // inputからスライダーへの同期（number inputの場合のみ）
+            if (input.type === 'number') {
+                input.addEventListener('input', function() {
+                    let value = parseFloat(this.value);
+                    if (isNaN(value)) return;
+
+                    // 範囲チェック
+                    const min = parseFloat(this.min);
+                    const max = parseFloat(this.max);
+                    if (value < min) value = min;
+                    if (value > max) value = max;
+
+                    // 逆変換を適用（theta precisionの場合）
+                    if (reverseTransform) {
+                        value = reverseTransform(value);
+                    }
+
+                    slider.value = value;
+                    this.value = transform ? transform(slider.value) : slider.value;
+                });
+
+                input.addEventListener('blur', function() {
+                    let value = parseFloat(this.value);
+                    if (isNaN(value)) {
+                        // 無効な値の場合、スライダーの値に戻す
+                        this.value = transform ? transform(slider.value) : slider.value;
+                        return;
+                    }
+
+                    // 範囲チェックと調整
+                    const min = parseFloat(this.min);
+                    const max = parseFloat(this.max);
+                    if (value < min) {
+                        value = min;
+                        this.value = value;
+                    }
+                    if (value > max) {
+                        value = max;
+                        this.value = value;
+                    }
+
+                    // stepに合わせて調整
+                    const step = parseFloat(this.step) || 1;
+                    value = Math.round(value / step) * step;
+                    this.value = value;
+
+                    // 逆変換を適用してスライダーを更新
+                    if (reverseTransform) {
+                        slider.value = reverseTransform(value);
+                    } else {
+                        slider.value = value;
+                    }
+                });
+            }
         }
 
         // 全スライダーの初期化
-        updateSliderValue('binaryThreshold', 'binaryThresholdValue');
-        updateSliderValue('erodeKernel', 'erodeKernelValue');
-        updateSliderValue('erodeIteration', 'erodeIterationValue');
-        updateSliderValue('lineAccumulation', 'lineAccumulationValue');
-        updateSliderValue('rhoPrecision', 'rhoPrecisionValue');
-        updateSliderValue('thetaPrecision', 'thetaPrecisionValue', (value) => {
-            return (Math.PI / parseFloat(value)).toFixed(4);
-        });
-        updateSliderValue('lineOffset', 'lineOffsetValue');
+        setupSliderInputSync('binaryThreshold', 'binaryThresholdValue');
+        setupSliderInputSync('erodeKernel', 'erodeKernelValue');
+        setupSliderInputSync('erodeIteration', 'erodeIterationValue');
+        setupSliderInputSync('lineAccumulation', 'lineAccumulationValue');
+        setupSliderInputSync('rhoPrecision', 'rhoPrecisionValue');
+        setupSliderInputSync('thetaPrecision', 'thetaPrecisionValue',
+            (value) => (Math.PI / parseFloat(value)).toFixed(4),
+            (value) => Math.PI / parseFloat(value)
+        );
+        setupSliderInputSync('lineOffset', 'lineOffsetValue');
 
         // 画像リストを取得
         async function loadImages() {
@@ -580,7 +641,7 @@
                 line_accumulation: parseInt(document.getElementById('lineAccumulation').value),
                 rho_precision: parseInt(document.getElementById('rhoPrecision').value),
                 theta_precision: Math.PI / parseFloat(document.getElementById('thetaPrecision').value),
-                line_offset: parseInt(document.getElementById('lineOffset').value)
+                line_offset: parseFloat(document.getElementById('lineOffset').value)
             };
 
             // UI状態を更新
@@ -651,33 +712,68 @@
                 line_accumulation: parseInt(document.getElementById('lineAccumulation').value),
                 rho_precision: parseInt(document.getElementById('rhoPrecision').value),
                 theta_precision: Math.PI / parseFloat(document.getElementById('thetaPrecision').value),
-                line_offset: parseInt(document.getElementById('lineOffset').value)
+                line_offset: parseFloat(document.getElementById('lineOffset').value)
             };
         }
 
         // パラメータをスライダーに適用
         function applyParameters(parameters) {
             document.getElementById('binaryThreshold').value = parameters.binary_threshold;
-            document.getElementById('binaryThresholdValue').textContent = parameters.binary_threshold;
+            const binaryThresholdInput = document.getElementById('binaryThresholdValue');
+            if (binaryThresholdInput.type === 'number') {
+                binaryThresholdInput.value = parameters.binary_threshold;
+            } else {
+                binaryThresholdInput.textContent = parameters.binary_threshold;
+            }
 
             document.getElementById('erodeKernel').value = parameters.erode_kernel;
-            document.getElementById('erodeKernelValue').textContent = parameters.erode_kernel;
+            const erodeKernelInput = document.getElementById('erodeKernelValue');
+            if (erodeKernelInput.type === 'number') {
+                erodeKernelInput.value = parameters.erode_kernel;
+            } else {
+                erodeKernelInput.textContent = parameters.erode_kernel;
+            }
 
             document.getElementById('erodeIteration').value = parameters.erode_iteration;
-            document.getElementById('erodeIterationValue').textContent = parameters.erode_iteration;
+            const erodeIterationInput = document.getElementById('erodeIterationValue');
+            if (erodeIterationInput.type === 'number') {
+                erodeIterationInput.value = parameters.erode_iteration;
+            } else {
+                erodeIterationInput.textContent = parameters.erode_iteration;
+            }
 
             document.getElementById('lineAccumulation').value = parameters.line_accumulation;
-            document.getElementById('lineAccumulationValue').textContent = parameters.line_accumulation;
+            const lineAccumulationInput = document.getElementById('lineAccumulationValue');
+            if (lineAccumulationInput.type === 'number') {
+                lineAccumulationInput.value = parameters.line_accumulation;
+            } else {
+                lineAccumulationInput.textContent = parameters.line_accumulation;
+            }
 
             document.getElementById('rhoPrecision').value = parameters.rho_precision;
-            document.getElementById('rhoPrecisionValue').textContent = parameters.rho_precision;
+            const rhoPrecisionInput = document.getElementById('rhoPrecisionValue');
+            if (rhoPrecisionInput.type === 'number') {
+                rhoPrecisionInput.value = parameters.rho_precision;
+            } else {
+                rhoPrecisionInput.textContent = parameters.rho_precision;
+            }
 
             const thetaValue = Math.PI / parameters.theta_precision;
             document.getElementById('thetaPrecision').value = thetaValue;
-            document.getElementById('thetaPrecisionValue').textContent = parameters.theta_precision.toFixed(4);
+            const thetaPrecisionInput = document.getElementById('thetaPrecisionValue');
+            if (thetaPrecisionInput.type === 'number') {
+                thetaPrecisionInput.value = parameters.theta_precision.toFixed(4);
+            } else {
+                thetaPrecisionInput.textContent = parameters.theta_precision.toFixed(4);
+            }
 
             document.getElementById('lineOffset').value = parameters.line_offset;
-            document.getElementById('lineOffsetValue').textContent = parameters.line_offset;
+            const lineOffsetInput = document.getElementById('lineOffsetValue');
+            if (lineOffsetInput.type === 'number') {
+                lineOffsetInput.value = parameters.line_offset;
+            } else {
+                lineOffsetInput.textContent = parameters.line_offset;
+            }
         }
 
         // ローカルストレージからプロファイルを取得
@@ -717,20 +813,48 @@
             const data = getProfiles();
             const profileList = document.getElementById('profileList');
 
-            if (data.profiles.length === 0) {
-                profileList.innerHTML = '<div class="empty-profile-list">保存されたプロファイルはありません</div>';
-                return;
-            }
+            // sampleプロファイルを定義
+            const sampleProfile = {
+                id: 'sample',
+                name: 'sample',
+                timestamp: '',
+                parameters: {
+                    binary_threshold: 100,
+                    erode_kernel: 3,
+                    erode_iteration: 2,
+                    line_accumulation: 200,
+                    rho_precision: 2,
+                    theta_precision: Math.PI / 2,
+                    line_offset: 5.5
+                }
+            };
 
-            profileList.innerHTML = data.profiles.map(profile => `
-                <div class="profile-item" data-profile-id="${profile.id}">
-                    <input type="checkbox" class="profile-checkbox" data-profile-id="${profile.id}">
-                    <div class="profile-info">
-                        <div class="profile-name">${profile.name}</div>
-                        <div class="profile-date">${profile.timestamp}</div>
+            // sampleプロファイルと保存されたプロファイルを結合
+            const allProfiles = [sampleProfile, ...data.profiles];
+
+            if (allProfiles.length === 1) { // sampleプロファイルのみ
+                profileList.innerHTML = `
+                    <div class="profile-item" data-profile-id="sample">
+                        <div class="profile-info">
+                            <div class="profile-name">sample</div>
+                            <div class="profile-date"></div>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            } else {
+                profileList.innerHTML = allProfiles.map(profile => {
+                    const isSample = profile.id === 'sample';
+                    return `
+                        <div class="profile-item" data-profile-id="${profile.id}">
+                            ${!isSample ? `<input type="checkbox" class="profile-checkbox" data-profile-id="${profile.id}">` : ''}
+                            <div class="profile-info">
+                                <div class="profile-name">${profile.name}</div>
+                                <div class="profile-date">${profile.timestamp}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
 
             // プロファイル項目のクリックイベントを設定
             profileList.querySelectorAll('.profile-item').forEach(item => {
@@ -741,7 +865,14 @@
                     }
 
                     const profileId = item.dataset.profileId;
-                    const profile = data.profiles.find(p => p.id === profileId);
+                    let profile;
+
+                    if (profileId === 'sample') {
+                        profile = sampleProfile;
+                    } else {
+                        profile = data.profiles.find(p => p.id === profileId);
+                    }
+
                     if (profile) {
                         applyParameters(profile.parameters);
                         currentProfileName = profile.name;
@@ -820,7 +951,7 @@
                 line_accumulation: parseInt(document.getElementById('lineAccumulation').value),
                 rho_precision: parseInt(document.getElementById('rhoPrecision').value),
                 theta_precision: Math.PI / parseFloat(document.getElementById('thetaPrecision').value),
-                line_offset: parseInt(document.getElementById('lineOffset').value)
+                line_offset: parseFloat(document.getElementById('lineOffset').value)
             };
 
             // UI状態を更新
