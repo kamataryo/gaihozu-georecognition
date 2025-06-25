@@ -10,6 +10,8 @@ import base64
 import io
 import csv
 import argparse
+import hashlib
+import json
 from line_detector import detect_lines
 
 def determine_orientation(line):
@@ -558,6 +560,250 @@ def get_csv_preview():
             'data': preview_data,
             'total_rows': len(data),
             'preview_rows': len(preview_data)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def calculate_md5_hash(file_path):
+    """ファイルのMD5ハッシュを計算"""
+    hash_md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(4096), b""):
+            hash_md5.update(chunk)
+    return hash_md5.hexdigest()
+
+def get_control_points_path(image_name):
+    """制御点ファイルのパスを取得"""
+    return os.path.join(TARGETS_DIR, f"{image_name}.controls.geojson")
+
+def sort_control_points(control_points):
+    """制御点を左上→右上→右下→左下の順に並び替え"""
+    if len(control_points) < 2:
+        return control_points
+
+    # 座標の平均を計算
+    x_coords = [p[0] for p in control_points]
+    y_coords = [p[1] for p in control_points]
+    x_avg = sum(x_coords) / len(x_coords)
+    y_avg = sum(y_coords) / len(y_coords)
+
+    # 各点を象限に分類
+    quadrants = [[], [], [], []]  # 左上、右上、左下、右下
+
+    for point in control_points:
+        x, y = point
+        if x < x_avg and y < y_avg:  # 左上
+            quadrants[0].append(point)
+        elif x >= x_avg and y < y_avg:  # 右上
+            quadrants[1].append(point)
+        elif x < x_avg and y >= y_avg:  # 左下
+            quadrants[2].append(point)
+        else:  # 右下
+            quadrants[3].append(point)
+
+    # 各象限内で最も適切な点を選択（複数ある場合は最初の点）
+    sorted_points = []
+    for quadrant in quadrants:
+        if quadrant:
+            sorted_points.append(quadrant[0])
+
+    return sorted_points
+
+@app.route('/api/image/<filename>', methods=['GET'])
+def get_image_info(filename):
+    """画像データと状態を取得"""
+    try:
+        image_path = os.path.join(TARGETS_DIR, filename)
+
+        if not os.path.exists(image_path):
+            return jsonify({'error': 'Image not found'}), 404
+
+        # 制御点ファイルの存在確認
+        control_points_path = get_control_points_path(filename)
+        has_controls = os.path.exists(control_points_path)
+
+        image_changed = False
+        if has_controls:
+            # 制御点ファイルを読み込んでハッシュを比較
+            try:
+                with open(control_points_path, 'r', encoding='utf-8') as f:
+                    control_data = json.load(f)
+
+                # 現在の画像のハッシュを計算
+                current_hash = calculate_md5_hash(image_path)
+                stored_hash = control_data.get('hash', '')
+
+                image_changed = (current_hash != stored_hash)
+            except:
+                image_changed = True
+
+        # 画像データを返す（base64エンコード）
+        with open(image_path, 'rb') as f:
+            image_data = base64.b64encode(f.read()).decode('utf-8')
+
+        return jsonify({
+            'success': True,
+            'image_data': f'data:image/jpeg;base64,{image_data}',
+            'has_controls': has_controls,
+            'image_changed': image_changed
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/control-points/<filename>', methods=['GET'])
+def get_control_points(filename):
+    """制御点データを取得"""
+    try:
+        control_points_path = get_control_points_path(filename)
+
+        if not os.path.exists(control_points_path):
+            return jsonify({'control_points': []}), 200
+
+        with open(control_points_path, 'r', encoding='utf-8') as f:
+            control_data = json.load(f)
+
+        return jsonify({
+            'success': True,
+            'control_points': control_data.get('control_points', []),
+            'hash': control_data.get('hash', '')
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/control-points/<filename>', methods=['POST'])
+def save_control_points(filename):
+    """制御点データを保存"""
+    try:
+        data = request.json
+        control_points = data.get('control_points', [])
+
+        # 画像パスの確認
+        image_path = os.path.join(TARGETS_DIR, filename)
+        if not os.path.exists(image_path):
+            return jsonify({'error': 'Image not found'}), 404
+
+        # 画像のハッシュを計算
+        image_hash = calculate_md5_hash(image_path)
+
+        # 制御点データを作成
+        control_data = {
+            'hash': image_hash,
+            'control_points': control_points
+        }
+
+        # 制御点ファイルに保存
+        control_points_path = get_control_points_path(filename)
+        with open(control_points_path, 'w', encoding='utf-8') as f:
+            json.dump(control_data, f, ensure_ascii=False, indent=2)
+
+        return jsonify({
+            'success': True,
+            'message': '制御点を保存しました',
+            'points_count': len(control_points)
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/download-all-controls', methods=['GET'])
+def download_all_controls():
+    """全制御点をCSVでダウンロード"""
+    try:
+        # 画像リストを取得
+        images = []
+        if os.path.exists(TARGETS_DIR):
+            for file in os.listdir(TARGETS_DIR):
+                if file.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    images.append(file)
+
+        # CSVデータを作成
+        csv_data = []
+        csv_data.append(['ファイル名', 'left_top_x', 'left_top_y', 'right_top_x', 'right_top_y',
+                        'right_bottom_x', 'right_bottom_y', 'left_bottom_x', 'left_bottom_y'])
+
+        for image_name in sorted(images):
+            control_points_path = get_control_points_path(image_name)
+
+            row = [image_name]
+
+            if os.path.exists(control_points_path):
+                try:
+                    with open(control_points_path, 'r', encoding='utf-8') as f:
+                        control_data = json.load(f)
+
+                    control_points = control_data.get('control_points', [])
+
+                    # 制御点を並び替え
+                    sorted_points = sort_control_points(control_points)
+
+                    # 最大4点まで、不足分は空白
+                    for i in range(4):
+                        if i < len(sorted_points):
+                            row.extend(sorted_points[i])
+                        else:
+                            row.extend(['', ''])
+
+                except:
+                    # エラーの場合は空白で埋める
+                    row.extend([''] * 8)
+            else:
+                # 制御点ファイルがない場合は空白で埋める
+                row.extend([''] * 8)
+
+            csv_data.append(row)
+
+        # CSVファイルを作成
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerows(csv_data)
+
+        # レスポンスを作成
+        response_data = output.getvalue()
+        output.close()
+
+        # バイナリデータに変換
+        response = io.BytesIO()
+        response.write(response_data.encode('utf-8-sig'))  # BOM付きUTF-8
+        response.seek(0)
+
+        return send_file(
+            response,
+            mimetype='text/csv',
+            as_attachment=True,
+            download_name='control_points.csv'
+        )
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/clear-all-control-points', methods=['DELETE'])
+def clear_all_control_points():
+    """全制御点を削除"""
+    try:
+        deleted_count = 0
+        error_count = 0
+
+        # 画像リストを取得
+        if os.path.exists(TARGETS_DIR):
+            for file in os.listdir(TARGETS_DIR):
+                if file.lower().endswith(('.jpg', '.jpeg', '.png')):
+                    control_points_path = get_control_points_path(file)
+
+                    if os.path.exists(control_points_path):
+                        try:
+                            os.remove(control_points_path)
+                            deleted_count += 1
+                        except Exception:
+                            error_count += 1
+
+        return jsonify({
+            'success': True,
+            'message': f'{deleted_count}個の制御点ファイルを削除しました',
+            'deleted_count': deleted_count,
+            'error_count': error_count
         })
 
     except Exception as e:

@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ハンディモード - 制御点設定</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .sidebar {
+            width: 350px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-right: 1px solid #dee2e6;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .control-group {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            border: 1px solid #e9ecef;
+            margin-bottom: 15px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .image-list {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: white;
+        }
+
+        .image-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .image-item:last-child {
+            border-bottom: none;
+        }
+
+        .image-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .image-item.selected {
+            background-color: #e3f2fd;
+        }
+
+        .image-status {
+            margin-right: 10px;
+            font-size: 16px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .image-name {
+            flex: 1;
+            color: #333;
+        }
+
+        .download-button {
+            width: 100%;
+            padding: 15px;
+            background-color: #17a2b8;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .download-button:hover {
+            background-color: #138496;
+        }
+
+        .clear-all-button {
+            width: 100%;
+            padding: 15px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .clear-all-button:hover {
+            background-color: #c82333;
+        }
+
+        .clear-all-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .save-button {
+            width: 100%;
+            padding: 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        .save-button:hover {
+            background-color: #45a049;
+        }
+
+        .save-button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .image-container {
+            position: relative;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .main-image {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            cursor: crosshair;
+        }
+
+        .control-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #ff0000;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            cursor: move;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .instructions {
+            background-color: #e8f5e8;
+            border: 1px solid #4CAF50;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h3 {
+            margin: 0 0 10px 0;
+            color: #2e7d32;
+        }
+
+        .instructions ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .instructions li {
+            margin-bottom: 5px;
+            color: #2e7d32;
+        }
+
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                height: auto;
+                min-height: 100vh;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #dee2e6;
+            }
+
+            .main-content {
+                flex: none;
+            }
+
+            h1 {
+                font-size: 24px;
+                margin-bottom: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sidebar {
+                padding: 15px;
+            }
+
+            .main-content {
+                padding: 15px;
+            }
+
+            .control-group {
+                padding: 12px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2 style="margin-top: 0; color: #333; font-size: 18px;">ハンディモード</h2>
+
+            <button id="downloadAllButton" class="download-button">制御点を全てダウンロード</button>
+
+            <div class="control-group">
+                <label>画像一覧:</label>
+                <div id="imageList" class="image-list">
+                    <!-- 画像リストがここに表示される -->
+                </div>
+            </div>
+
+            <button id="clearAllButton" class="clear-all-button">制御点をすべて削除</button>
+        </div>
+
+        <div class="main-content">
+            <h1>制御点設定</h1>
+
+            <div class="instructions">
+                <h3>操作方法</h3>
+                <ul>
+                    <li>画像上をクリック：制御点を追加（最大4点まで）</li>
+                    <li>制御点をドラッグ：制御点を移動</li>
+                    <li>制御点を右クリック：制御点を削除</li>
+                </ul>
+            </div>
+
+            <button id="saveButton" class="save-button" disabled>制御点を保存</button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>処理中...</p>
+            </div>
+
+            <div id="status"></div>
+
+            <div class="image-container" id="imageContainer" style="display: none;">
+                <img id="mainImage" class="main-image" alt="選択された画像">
+                <!-- 制御点がここに動的に追加される -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentImageName = null;
+        let controlPoints = [];
+        let isDragging = false;
+        let dragIndex = -1;
+        let imageElement = null;
+        let imageContainer = null;
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            imageElement = document.getElementById('mainImage');
+            imageContainer = document.getElementById('imageContainer');
+
+            loadImageList();
+            setupEventListeners();
+        });
+
+        // イベントリスナーの設定
+        function setupEventListeners() {
+            document.getElementById('saveButton').addEventListener('click', saveControlPoints);
+            document.getElementById('downloadAllButton').addEventListener('click', downloadAllControls);
+            document.getElementById('clearAllButton').addEventListener('click', clearAllControlPoints);
+
+            // 画像クリックイベント
+            imageElement.addEventListener('click', handleImageClick);
+            imageElement.addEventListener('contextmenu', function(e) {
+                e.preventDefault(); // 右クリックメニューを無効化
+            });
+
+            // マウスイベント（ドラッグ用）
+            document.addEventListener('mousedown', handleMouseDown);
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+        }
+
+        // 画像リストを読み込み
+        async function loadImageList() {
+            try {
+                const response = await fetch('/api/images');
+                const data = await response.json();
+
+                const imageList = document.getElementById('imageList');
+                imageList.innerHTML = '';
+
+                for (const imageName of data.images) {
+                    const imageItem = document.createElement('div');
+                    imageItem.className = 'image-item';
+                    imageItem.dataset.imageName = imageName;
+
+                    // 画像の状態を取得
+                    const statusIcon = await getImageStatus(imageName);
+
+                    imageItem.innerHTML = `
+                        <span class="image-status">${statusIcon}</span>
+                        <span class="image-name">${imageName}</span>
+                    `;
+
+                    imageItem.addEventListener('click', () => selectImage(imageName));
+                    imageList.appendChild(imageItem);
+                }
+            } catch (error) {
+                showStatus('画像リストの取得に失敗しました: ' + error.message, 'error');
+            }
+        }
+
+        // 画像の状態を取得
+        async function getImageStatus(imageName) {
+            try {
+                const response = await fetch(`/api/image/${encodeURIComponent(imageName)}`);
+                const data = await response.json();
+
+                if (data.has_controls) {
+                    if (data.image_changed) {
+                        return '❓'; // 画像が変更されている
+                    } else {
+                        return '✅'; // 制御点保存済み
+                    }
+                } else {
+                    return '⚪'; // 制御点未設定
+                }
+            } catch (error) {
+                return '❌'; // エラー
+            }
+        }
+
+        // 画像を選択
+        async function selectImage(imageName) {
+            // 選択状態を更新
+            document.querySelectorAll('.image-item').forEach(item => {
+                item.classList.remove('selected');
+            });
+            document.querySelector(`[data-image-name="${imageName}"]`).classList.add('selected');
+
+            currentImageName = imageName;
+
+            // 画像データを取得して表示
+            const imageResponse = await fetch(`/api/image/${encodeURIComponent(imageName)}`);
+            const imageData = await imageResponse.json();
+
+            if (imageData.success) {
+                imageElement.src = imageData.image_data;
+                imageContainer.style.display = 'block';
+            } else {
+                showStatus('画像の読み込みに失敗しました', 'error');
+                return;
+            }
+
+            // 既存の制御点を読み込み
+            await loadControlPoints(imageName);
+
+            // 保存ボタンを有効化
+            document.getElementById('saveButton').disabled = false;
+        }
+
+        // 制御点を読み込み
+        async function loadControlPoints(imageName) {
+            try {
+                const response = await fetch(`/api/control-points/${encodeURIComponent(imageName)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    controlPoints = data.control_points || [];
+                } else {
+                    controlPoints = [];
+                }
+                renderControlPoints();
+            } catch (error) {
+                controlPoints = [];
+                renderControlPoints();
+            }
+        }
+
+        // 制御点を描画
+        function renderControlPoints() {
+            // 既存の制御点を削除
+            document.querySelectorAll('.control-point').forEach(point => {
+                point.remove();
+            });
+
+            // 新しい制御点を追加
+            controlPoints.forEach((point, index) => {
+                createControlPointElement(point[0], point[1], index);
+            });
+        }
+
+        // 制御点要素を作成
+        function createControlPointElement(x, y, index) {
+            const pointElement = document.createElement('div');
+            pointElement.className = 'control-point';
+            pointElement.dataset.index = index;
+            pointElement.style.left = x + 'px';
+            pointElement.style.top = y + 'px';
+
+            // 右クリックで削除
+            pointElement.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                removeControlPoint(index);
+            });
+
+            imageContainer.appendChild(pointElement);
+        }
+
+        // 画像クリック処理
+        function handleImageClick(e) {
+            if (isDragging) return;
+
+            // 制御点の最大数チェック
+            if (controlPoints.length >= 4) {
+                alert('制御点は最大4点までです。まず削除してください。');
+                return;
+            }
+
+            const rect = imageElement.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            // 制御点を追加
+            controlPoints.push([Math.round(x), Math.round(y)]);
+            renderControlPoints();
+        }
+
+        // 制御点を削除
+        function removeControlPoint(index) {
+            controlPoints.splice(index, 1);
+            renderControlPoints();
+        }
+
+        // マウスダウン処理
+        function handleMouseDown(e) {
+            if (e.target.classList.contains('control-point')) {
+                isDragging = true;
+                dragIndex = parseInt(e.target.dataset.index);
+                e.preventDefault();
+            }
+        }
+
+        // マウス移動処理
+        function handleMouseMove(e) {
+            if (isDragging && dragIndex >= 0) {
+                const rect = imageElement.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                // 画像の境界内に制限
+                const boundedX = Math.max(0, Math.min(x, rect.width));
+                const boundedY = Math.max(0, Math.min(y, rect.height));
+
+                controlPoints[dragIndex] = [Math.round(boundedX), Math.round(boundedY)];
+                renderControlPoints();
+            }
+        }
+
+        // マウスアップ処理
+        function handleMouseUp(e) {
+            isDragging = false;
+            dragIndex = -1;
+        }
+
+        // 制御点を保存
+        async function saveControlPoints() {
+            if (!currentImageName) {
+                showStatus('画像が選択されていません', 'error');
+                return;
+            }
+
+            try {
+                document.getElementById('loading').style.display = 'block';
+
+                const response = await fetch(`/api/control-points/${encodeURIComponent(currentImageName)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        control_points: controlPoints
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus('制御点を保存しました', 'success');
+                    // 画像リストの状態を更新
+                    loadImageList();
+                } else {
+                    showStatus(data.error || '保存に失敗しました', 'error');
+                }
+            } catch (error) {
+                showStatus('保存中にエラーが発生しました: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // 全制御点をダウンロード
+        async function downloadAllControls() {
+            try {
+                document.getElementById('loading').style.display = 'block';
+
+                const response = await fetch('/api/download-all-controls');
+
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'control_points.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+
+                    showStatus('CSVファイルをダウンロードしました', 'success');
+                } else {
+                    const data = await response.json();
+                    showStatus(data.error || 'ダウンロードに失敗しました', 'error');
+                }
+            } catch (error) {
+                showStatus('ダウンロード中にエラーが発生しました: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // 全制御点を削除
+        async function clearAllControlPoints() {
+            // 確認ダイアログを表示
+            if (!confirm('すべての制御点を削除しますか？この操作は元に戻せません。')) {
+                return;
+            }
+
+            try {
+                document.getElementById('loading').style.display = 'block';
+
+                const response = await fetch('/api/clear-all-control-points', {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showStatus(data.message, 'success');
+
+                    // 現在表示中の制御点をクリア
+                    controlPoints = [];
+                    renderControlPoints();
+
+                    // 画像リストの状態を更新
+                    loadImageList();
+                } else {
+                    showStatus(data.error || '削除に失敗しました', 'error');
+                }
+            } catch (error) {
+                showStatus('削除中にエラーが発生しました: ' + error.message, 'error');
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        }
+
+        // ステータス表示
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+            statusDiv.style.display = 'block';
+
+            // 3秒後に自動で非表示
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
